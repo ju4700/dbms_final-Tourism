@@ -1,29 +1,3 @@
-import 'next-auth'
-
-declare module 'next-auth' {
-  interface Session {
-    user: {
-      id: string
-      email: string
-      name: string
-      role: 'admin' | 'manager' | 'guide'
-    }
-  }
-
-  interface User {
-    id: string
-    email: string
-    name: string
-    role: 'admin' | 'manager' | 'guide'
-  }
-}
-
-declare module 'next-auth/jwt' {
-  interface JWT {
-    role?: 'admin' | 'manager' | 'guide'
-  }
-}
-
 export interface Tourist {
   _id: string
   touristId: string
@@ -82,7 +56,7 @@ export interface TourPackage {
     activities: string[]
   }[]
   maxGroupSize: number
-  difficulty: 'easy' | 'moderate' | 'challenging' | 'extreme'
+  difficulty: 'easy' | 'moderate' | 'difficult'
   category: 'adventure' | 'cultural' | 'wildlife' | 'beach' | 'mountain' | 'historical' | 'luxury' | 'budget'
   images: string[]
   isActive: boolean
@@ -141,34 +115,32 @@ export interface Guide {
   _id: string
   guideId: string
   name: string
-  email: string
+  email?: string
   phone: string
-  specializations: string[]
-  destinations: string[]
-  languages: string[]
-  experience: number
-  rating: number
-  totalReviews: number
-  pricePerDay: number
-  availability: {
+  specializations?: string[]
+  destinations?: string[]
+  languages?: string[]
+  experience?: number
+  rating?: number
+  totalReviews?: number
+  dailyRate?: number
+  pricePerDay?: number // alias for dailyRate
+  availability?: {
     date: Date
     isAvailable: boolean
   }[]
-  certifications: {
-    name: string
-    issuedBy: string
-    validUntil: Date
-  }[]
+  certifications?: string[]
   profilePicture?: string
   bio?: string
-  isActive: boolean
-  emergencyContact: {
+  isActive?: boolean
+  isAvailable?: boolean
+  emergencyContact?: {
     name?: string
     phone?: string
     relationship?: string
   }
-  createdAt: Date
-  updatedAt: Date
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 export interface Destination {

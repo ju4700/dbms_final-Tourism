@@ -6,7 +6,7 @@ export async function GET() {
   try {
     await connectDB()
     const destinations = await Destination.find({}).sort({ name: 1 })
-    return NextResponse.json({ destinations })
+    return NextResponse.json(destinations.map(d => d.name))
   } catch (error) {
     console.error('Error fetching destinations:', error)
     return NextResponse.json({ error: 'Failed to fetch destinations' }, { status: 500 })
@@ -41,38 +41,10 @@ export async function POST(request: Request) {
     })
     
     const destinations = await Destination.find({}).sort({ name: 1 })
-    return NextResponse.json({ success: true, destinations })
+    return NextResponse.json({ success: true, destinations: destinations.map(d => d.name) })
   } catch (error) {
     console.error('Error creating destination:', error)
     return NextResponse.json({ error: 'Failed to create destination' }, { status: 500 })
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    const { _id, name, country, description, popularAttractions, bestTimeToVisit, averageCost } = await request.json()
-    
-    if (!_id) {
-      return NextResponse.json({ error: 'Destination ID is required' }, { status: 400 })
-    }
-    
-    await connectDB()
-    
-    const updatedDestination = await Destination.findByIdAndUpdate(
-      _id,
-      { name, country, description, popularAttractions, bestTimeToVisit, averageCost },
-      { new: true, runValidators: true }
-    )
-    
-    if (!updatedDestination) {
-      return NextResponse.json({ error: 'Destination not found' }, { status: 404 })
-    }
-    
-    const destinations = await Destination.find({}).sort({ name: 1 })
-    return NextResponse.json({ success: true, destinations })
-  } catch (error) {
-    console.error('Error updating destination:', error)
-    return NextResponse.json({ error: 'Failed to update destination' }, { status: 500 })
   }
 }
 
@@ -93,7 +65,7 @@ export async function DELETE(request: Request) {
     }
     
     const destinations = await Destination.find({}).sort({ name: 1 })
-    return NextResponse.json({ success: true, destinations })
+    return NextResponse.json({ success: true, destinations: destinations.map(d => d.name) })
   } catch (error) {
     console.error('Error deleting destination:', error)
     return NextResponse.json({ error: 'Failed to delete destination' }, { status: 500 })

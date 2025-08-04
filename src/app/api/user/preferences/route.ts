@@ -1,70 +1,57 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { connectDB } from '@/lib/db'
-import User from '@/models/User'
+import { NextResponse } from 'next/server'
+import { connectDB } from '../../../../lib/db'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     await connectDB()
-    
-    const user = await User.findById(session.user.id).select('preferences')
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    // Return default preferences since no authentication
+    const defaultPreferences = {
+      tableColumns: {
+        showName: true,
+        showTouristId: true,
+        showEmail: true,
+        showPhone: true,
+        showDestination: true,
+        showPassportNumber: false,
+        showTourPackage: true,
+        showPackagePrice: true,
+        showTotalAmount: true,
+        showPaidAmount: true,
+        showPaymentStatus: true,
+        showStatus: true,
+        showTravelDate: true,
+        showAssignedGuide: true,
+        showActions: true
+      },
+      theme: 'light',
+      notifications: true
     }
-
-    return NextResponse.json({
-      success: true,
-      data: user.preferences || {}
+    
+    return NextResponse.json({ 
+      success: true, 
+      data: defaultPreferences 
     })
   } catch (error) {
-    console.error('Error fetching user preferences:', error)
+    console.error('Failed to get preferences:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch preferences' },
+      { error: 'Failed to get preferences' },
       { status: 500 }
     )
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { preferences } = await request.json()
-
-    if (!preferences) {
-      return NextResponse.json({ error: 'Preferences data required' }, { status: 400 })
-    }
-
+    const preferences = await request.json()
     await connectDB()
     
-    const user = await User.findByIdAndUpdate(
-      session.user.id,
-      { $set: { preferences } },
-      { new: true, runValidators: true }
-    ).select('preferences')
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: user.preferences
+    // Since no authentication, just return success
+    return NextResponse.json({ 
+      success: true, 
+      data: preferences 
     })
   } catch (error) {
-    console.error('Error updating user preferences:', error)
+    console.error('Failed to update preferences:', error)
     return NextResponse.json(
       { error: 'Failed to update preferences' },
       { status: 500 }
@@ -72,41 +59,20 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { key, value } = await request.json()
-
-    if (!key) {
-      return NextResponse.json({ error: 'Preference key required' }, { status: 400 })
-    }
-
+    const updates = await request.json()
     await connectDB()
     
-    const updatePath = `preferences.${key}`
-    const user = await User.findByIdAndUpdate(
-      session.user.id,
-      { $set: { [updatePath]: value } },
-      { new: true, runValidators: true }
-    ).select('preferences')
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: user.preferences
+    // Since no authentication, just return success
+    return NextResponse.json({ 
+      success: true, 
+      data: updates 
     })
   } catch (error) {
-    console.error('Error updating user preference:', error)
+    console.error('Failed to update preferences:', error)
     return NextResponse.json(
-      { error: 'Failed to update preference' },
+      { error: 'Failed to update preferences' },
       { status: 500 }
     )
   }

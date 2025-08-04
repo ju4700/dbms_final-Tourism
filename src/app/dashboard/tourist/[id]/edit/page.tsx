@@ -1,0 +1,732 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { z } from 'zod'
+import { toast } from 'react-hot-toast'
+import DashboardLayout from '@/components/layout/DashboardLayout'
+import { Tourist } from '@/types'
+import { useDestinations } from '@/hooks/useDestinations'
+
+const touristSchema = z.object({
+  touristId: z.string().min(1, 'Tourist ID is required'),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().optional().refine(
+    (val) => !val || z.string().email().safeParse(val).success,
+    { message: 'Please enter a valid email address' }
+  ),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  address: z.object({
+    street: z.string().optional(),
+    city: z.string().min(1, 'City is required'),
+    state: z.string().min(1, 'State is required'),
+    country: z.string().min(1, 'Country is required'),
+    zipCode: z.string().optional(),
+  }),
+  destination: z.string().min(1, 'Destination is required'),
+  tourPackage: z.string().min(1, 'Tour package is required'),
+  numberOfTravelers: z.number().min(1, 'Number of travelers must be at least 1'),
+  travelDate: z.string().min(1, 'Travel date is required'),
+  returnDate: z.string().min(1, 'Return date is required'),
+  packagePrice: z.number().min(1, 'Package price must be greater than 0'),
+  totalAmount: z.number().min(1, 'Total amount must be greater than 0'),
+  paidAmount: z.number().min(0, 'Paid amount must be 0 or greater'),
+  paymentStatus: z.enum(['pending', 'partial', 'paid', 'refunded']),
+  status: z.enum(['active', 'completed', 'cancelled', 'pending']),
+  bookingDate: z.string().min(1, 'Booking date is required'),
+  passportNumber: z.string().optional(),
+  passportImage: z.string().optional(),
+  visaImage: z.string().optional(),
+  profilePicture: z.string().optional(),
+  assignedGuide: z.string().optional(),
+  emergencyContact: z.object({
+    name: z.string().optional(),
+    phone: z.string().optional(),
+    relationship: z.string().optional(),
+  }).optional(),
+  specialRequests: z.string().optional(),
+})
+
+type TouristFormData = z.infer<typeof touristSchema>
+
+export default function EditTouristPage() {
+  const router = useRouter()
+  const params = useParams()
+  const [tourist, setTourist] = useState<Tourist | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const { destinations, loading: destinationsLoading } = useDestinations()
+  
+  // Form data
+  const [formData, setFormData] = useState<TouristFormData>({
+    touristId: '',
+    name: '',
+    email: '',
+    phone: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      country: '',
+      zipCode: '',
+    },
+    destination: '',
+    tourPackage: '',
+    numberOfTravelers: 1,
+    travelDate: '',
+    returnDate: '',
+    packagePrice: 0,
+    totalAmount: 0,
+    paidAmount: 0,
+    paymentStatus: 'pending',
+    status: 'active',
+    bookingDate: '',
+    passportNumber: '',
+    passportImage: '',
+    visaImage: '',
+    profilePicture: '',
+    assignedGuide: '',
+    emergencyContact: {
+      name: '',
+      phone: '',
+      relationship: '',
+    },
+    specialRequests: '',
+  })
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Authentication check
+  useEffect(() => {
+    if (params.id) {
+      fetchTourist()
+    }
+  }, [params.id])
+
+  // Fetch tourist data
+  const fetchTourist = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/tourists/${params.id}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        const touristData = data.tourist
+        setTourist(touristData)
+        
+        // Convert dates to YYYY-MM-DD format for inputs
+        const formatDateForInput = (date: string | Date) => {
+          if (!date) return ''
+          return new Date(date).toISOString().split('T')[0]
+        }
+        
+        // Populate form with tourist data
+        setFormData({
+          touristId: touristData.touristId || '',
+          name: touristData.name || '',
+          email: touristData.email || '',
+          phone: touristData.phone || '',
+          address: {
+            street: touristData.address?.street || '',
+            city: touristData.address?.city || '',
+            state: touristData.address?.state || '',
+            country: touristData.address?.country || '',
+            zipCode: touristData.address?.zipCode || '',
+          },
+          destination: touristData.destination || '',
+          tourPackage: touristData.tourPackage || '',
+          numberOfTravelers: touristData.numberOfTravelers || 1,
+          travelDate: formatDateForInput(touristData.travelDate),
+          returnDate: formatDateForInput(touristData.returnDate),
+          packagePrice: touristData.packagePrice || 0,
+          totalAmount: touristData.totalAmount || 0,
+          paidAmount: touristData.paidAmount || 0,
+          paymentStatus: touristData.paymentStatus || 'pending',
+          status: touristData.status || 'active',
+          bookingDate: formatDateForInput(touristData.bookingDate),
+          passportNumber: touristData.passportNumber || '',
+          passportImage: touristData.passportImage || '',
+          visaImage: touristData.visaImage || '',
+          profilePicture: touristData.profilePicture || '',
+          assignedGuide: touristData.assignedGuide || '',
+          emergencyContact: touristData.emergencyContact || {
+            name: '',
+            phone: '',
+            relationship: '',
+          },
+          specialRequests: touristData.specialRequests || '',
+        })
+      } else {
+        toast.error('Tourist not found')
+        router.push('/dashboard')
+      }
+    } catch (error) {
+      console.error('Error fetching tourist:', error)
+      toast.error('Failed to load tourist')
+      router.push('/dashboard')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle form field changes
+  const handleFieldChange = (field: string, value: any) => {
+    setFormData(prev => {
+      const newData = { ...prev }
+      const keys = field.split('.')
+      let current = newData as any
+      
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!(keys[i] in current)) {
+          current[keys[i]] = {}
+        }
+        current = current[keys[i]]
+      }
+      
+      current[keys[keys.length - 1]] = value
+      return newData
+    })
+    
+    // Clear error when field is updated
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrors({})
+    
+    // Validate form
+    const validation = touristSchema.safeParse(formData)
+    if (!validation.success) {
+      const fieldErrors: Record<string, string> = {}
+      validation.error.errors.forEach((error) => {
+        const field = error.path.join('.')
+        fieldErrors[field] = error.message
+      })
+      setErrors(fieldErrors)
+      toast.error('Please fix the form errors')
+      return
+    }
+
+    setIsSubmitting(true)
+    
+    try {
+      const response = await fetch(`/api/tourists/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+      
+      if (response.ok) {
+        toast.success('Tourist updated successfully!')
+        router.push(`/dashboard/tourist/${params.id}`)
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.error || 'Failed to update tourist')
+      }
+    } catch (error) {
+      console.error('Error updating tourist:', error)
+      toast.error('An error occurred while updating tourist')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Package options
+  const packageOptions = [
+    { value: 'budget', label: 'Budget Package', price: 500 },
+    { value: 'standard', label: 'Standard Package', price: 1000 },
+    { value: 'premium', label: 'Premium Package', price: 1500 },
+    { value: 'luxury', label: 'Luxury Package', price: 2500 },
+  ]
+
+  // Update total amount when package or travelers change
+  useEffect(() => {
+    const selectedPackage = packageOptions.find(p => p.value === formData.tourPackage)
+    if (selectedPackage) {
+      const totalAmount = selectedPackage.price * formData.numberOfTravelers
+      setFormData(prev => ({
+        ...prev,
+        packagePrice: selectedPackage.price,
+        totalAmount,
+      }))
+    }
+  }, [formData.tourPackage, formData.numberOfTravelers])
+
+  if (status === 'loading' || loading) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg border border-gray-200 p-8">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
+              <div className="space-y-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-12 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (!tourist) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Tourist not found</h3>
+            <p className="text-gray-600">The tourist you're looking for doesn't exist or has been deleted.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-lg border border-gray-200 p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-8">Edit Tourist</h1>
+          
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Basic Information */}
+            <div className="border-b border-gray-200 pb-8">
+              <h2 className="text-lg font-medium text-gray-900 mb-6">Basic Information</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tourist ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.touristId}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleFieldChange('name', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleFieldChange('email', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => handleFieldChange('phone', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Passport Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.passportNumber}
+                    onChange={(e) => handleFieldChange('passportNumber', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Number of Travelers *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.numberOfTravelers}
+                    onChange={(e) => handleFieldChange('numberOfTravelers', parseInt(e.target.value) || 1)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.numberOfTravelers ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.numberOfTravelers && <p className="mt-1 text-sm text-red-600">{errors.numberOfTravelers}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Address */}
+            <div className="border-b border-gray-200 pb-8">
+              <h2 className="text-lg font-medium text-gray-900 mb-6">Address</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Street Address
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address.street}
+                    onChange={(e) => handleFieldChange('address.street', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address.city}
+                    onChange={(e) => handleFieldChange('address.city', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors['address.city'] ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors['address.city'] && <p className="mt-1 text-sm text-red-600">{errors['address.city']}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    State *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address.state}
+                    onChange={(e) => handleFieldChange('address.state', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors['address.state'] ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors['address.state'] && <p className="mt-1 text-sm text-red-600">{errors['address.state']}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Country *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address.country}
+                    onChange={(e) => handleFieldChange('address.country', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors['address.country'] ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors['address.country'] && <p className="mt-1 text-sm text-red-600">{errors['address.country']}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Zip Code
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address.zipCode}
+                    onChange={(e) => handleFieldChange('address.zipCode', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Travel Information */}
+            <div className="border-b border-gray-200 pb-8">
+              <h2 className="text-lg font-medium text-gray-900 mb-6">Travel Information</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Destination *
+                  </label>
+                  <select
+                    value={formData.destination}
+                    onChange={(e) => handleFieldChange('destination', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.destination ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Select destination</option>
+                    {destinations.map((dest) => (
+                      <option key={dest} value={dest}>
+                        {dest}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.destination && <p className="mt-1 text-sm text-red-600">{errors.destination}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tour Package *
+                  </label>
+                  <select
+                    value={formData.tourPackage}
+                    onChange={(e) => handleFieldChange('tourPackage', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.tourPackage ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Select package</option>
+                    {packageOptions.map((pkg) => (
+                      <option key={pkg.value} value={pkg.value}>
+                        {pkg.label} - ${pkg.price}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.tourPackage && <p className="mt-1 text-sm text-red-600">{errors.tourPackage}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Travel Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.travelDate}
+                    onChange={(e) => handleFieldChange('travelDate', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.travelDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.travelDate && <p className="mt-1 text-sm text-red-600">{errors.travelDate}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Return Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.returnDate}
+                    onChange={(e) => handleFieldChange('returnDate', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.returnDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.returnDate && <p className="mt-1 text-sm text-red-600">{errors.returnDate}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Booking Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.bookingDate}
+                    onChange={(e) => handleFieldChange('bookingDate', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md shadow-sm ${
+                      errors.bookingDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {errors.bookingDate && <p className="mt-1 text-sm text-red-600">{errors.bookingDate}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assigned Guide
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.assignedGuide}
+                    onChange={(e) => handleFieldChange('assignedGuide', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Information */}
+            <div className="border-b border-gray-200 pb-8">
+              <h2 className="text-lg font-medium text-gray-900 mb-6">Payment Information</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Package Price
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.packagePrice}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Total Amount
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.totalAmount}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Paid Amount
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.paidAmount}
+                    onChange={(e) => handleFieldChange('paidAmount', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Status
+                  </label>
+                  <select
+                    value={formData.paymentStatus}
+                    onChange={(e) => handleFieldChange('paymentStatus', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="partial">Partial</option>
+                    <option value="paid">Paid</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => handleFieldChange('status', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  >
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Contact */}
+            <div className="border-b border-gray-200 pb-8">
+              <h2 className="text-lg font-medium text-gray-900 mb-6">Emergency Contact</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.emergencyContact?.name || ''}
+                    onChange={(e) => handleFieldChange('emergencyContact.name', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.emergencyContact?.phone || ''}
+                    onChange={(e) => handleFieldChange('emergencyContact.phone', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Relationship
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.emergencyContact?.relationship || ''}
+                    onChange={(e) => handleFieldChange('emergencyContact.relationship', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Special Requests */}
+            <div className="border-b border-gray-200 pb-8">
+              <h2 className="text-lg font-medium text-gray-900 mb-6">Special Requests</h2>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Special Requests
+                </label>
+                <textarea
+                  value={formData.specialRequests}
+                  onChange={(e) => handleFieldChange('specialRequests', e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  placeholder="Any special requests or notes..."
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Updating Tourist...' : 'Update Tourist'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </DashboardLayout>
+  )
+}

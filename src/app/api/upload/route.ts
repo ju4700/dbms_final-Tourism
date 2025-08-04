@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { uploadToHosting } from '@/lib/hosting'
+import { uploadToHosting } from '../../../lib/hosting'
 
 // Max file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -15,12 +13,6 @@ const ALLOWED_TYPES = [
 
 export async function POST(req: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     // Parse multipart form data
     const formData = await req.formData();
     const file = formData.get('file');

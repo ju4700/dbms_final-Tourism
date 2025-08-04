@@ -3,8 +3,8 @@ import './globals.css'
 import { Providers } from '@/components/providers/Providers'
 
 export const metadata: Metadata = {
-  title: 'LinkUp Customer Management',
-  description: 'Customer management system for LinkUp Communications',
+  title: 'Tourism Management System',
+  description: 'Simple tourism management system for managing tourists, destinations, and bookings',
 }
 
 export const viewport: Viewport = {

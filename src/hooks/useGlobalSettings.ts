@@ -1,40 +1,44 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 
-interface CustomerTableColumns {
+interface TouristTableColumns {
   showName: boolean
-  showCustomerId: boolean
+  showTouristId: boolean
   showEmail: boolean
   showPhone: boolean
-  showZone: boolean
-  showNidNumber: boolean
-  showIpAddress: boolean
-  showPppoePassword: boolean
-  showPackage: boolean
-  showMonthlyFee: boolean
+  showDestination: boolean
+  showPassportNumber: boolean
+  showTourPackage: boolean
+  showPackagePrice: boolean
+  showTotalAmount: boolean
+  showPaidAmount: boolean
+  showPaymentStatus: boolean
   showStatus: boolean
-  showJoiningDate: boolean
+  showTravelDate: boolean
+  showAssignedGuide: boolean
   showActions: boolean
 }
 
-export const defaultColumns: CustomerTableColumns = {
+export const defaultColumns: TouristTableColumns = {
   showName: true,
-  showCustomerId: true,
+  showTouristId: true,
   showEmail: true,
   showPhone: true,
-  showZone: true,
-  showNidNumber: true,
-  showIpAddress: false,
-  showPppoePassword: false,
-  showPackage: true,
-  showMonthlyFee: true,
+  showDestination: true,
+  showPassportNumber: false,
+  showTourPackage: true,
+  showPackagePrice: true,
+  showTotalAmount: true,
+  showPaidAmount: true,
+  showPaymentStatus: true,
   showStatus: true,
-  showJoiningDate: true,
+  showTravelDate: true,
+  showAssignedGuide: false,
   showActions: true
 }
 
-export function useGlobalCustomerTableSettings() {
-  const [settings, setSettings] = useState<CustomerTableColumns>(defaultColumns)
+export function useGlobalTouristTableSettings() {
+  const [settings, setSettings] = useState<TouristTableColumns>(defaultColumns)
   const [loading, setLoading] = useState(true)
 
   const fetchSettings = async () => {
@@ -42,11 +46,11 @@ export function useGlobalCustomerTableSettings() {
       const response = await fetch('/api/admin/global-settings')
       if (response.ok) {
         const data = await response.json()
-        // If the API returns { customerTableColumns: {...} }, use that
+        // If the API returns { touristTableColumns: {...} }, use that
         if (data && typeof data === 'object' && 'showName' in data) {
           setSettings(data)
-        } else if (data && typeof data === 'object' && 'customerTableColumns' in data) {
-          setSettings(data.customerTableColumns)
+        } else if (data && typeof data === 'object' && 'touristTableColumns' in data) {
+          setSettings(data.touristTableColumns)
         }
       }
     } catch (error) {
@@ -56,7 +60,7 @@ export function useGlobalCustomerTableSettings() {
     }
   }
 
-  const updateSettings = async (newSettings: Partial<CustomerTableColumns>) => {
+  const updateSettings = async (newSettings: Partial<TouristTableColumns>) => {
     try {
       const updatedSettings = { ...settings, ...newSettings }
       const response = await fetch('/api/admin/global-settings', {

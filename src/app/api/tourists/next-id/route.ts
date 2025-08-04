@@ -1,16 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { connectDB } from '@/lib/db';
-import { Tourist } from '@/models/Tourist';
+import { connectDB } from '../../../../lib/db';
+import { Tourist } from '../../../../models/Tourist';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     await connectDB();
 
     // Get all tourist IDs that match the TMS-xxxx pattern and find the highest number

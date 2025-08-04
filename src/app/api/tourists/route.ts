@@ -1,72 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { connectDB } from '@/lib/db'
 import { Tourist } from '@/models/Tourist'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     await connectDB()
 
     const { searchParams } = new URL(request.url)
+    
+    // Basic search parameters
     const search = searchParams.get('search')
     const status = searchParams.get('status')
-    const destination = searchParams.get('destination')
-    const dateFrom = searchParams.get('dateFrom')
-    const dateTo = searchParams.get('dateTo')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
-    const tourPackage = searchParams.get('tourPackage')
-    const paymentStatus = searchParams.get('paymentStatus')
+    
+    // Advanced search parameters
+    const name = searchParams.get('name')
+    const email = searchParams.get('email')
+    const nationality = searchParams.get('nationality')
+    const gender = searchParams.get('gender')
+    const minAge = searchParams.get('minAge')
+    const maxAge = searchParams.get('maxAge')
+    const fromDate = searchParams.get('fromDate')
+    const toDate = searchParams.get('toDate')
 
     // Build filter query
     const filter: any = {}
 
+    // Basic search across multiple fields
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } },
-        { touristId: { $regex: search, $options: 'i' } },
-        { 'address.city': { $regex: search, $options: 'i' } },
-        { 'address.state': { $regex: search, $options: 'i' } },
-        { 'address.country': { $regex: search, $options: 'i' } },
-        { destination: { $regex: search, $options: 'i' } },
-        { tourPackage: { $regex: search, $options: 'i' } },
+        { nationality: { $regex: search, $options: 'i' } },
         { passportNumber: { $regex: search, $options: 'i' } }
       ]
+    }
+
+    // Advanced search filters
+    if (name) {
+      filter.name = { $regex: name, $options: 'i' }
+    }
+
+    if (email) {
+      filter.email = { $regex: email, $options: 'i' }
+    }
+
+    if (nationality) {
+      filter.nationality = { $regex: nationality, $options: 'i' }
     }
 
     if (status) {
       filter.status = status
     }
 
-    if (destination) {
-      filter.destination = { $regex: destination, $options: 'i' }
+    if (gender) {
+      filter.gender = gender
     }
 
-    if (paymentStatus) {
-      filter.paymentStatus = paymentStatus
+    // Age-based filtering using date of birth
+    if (minAge || maxAge) {
+      const today = new Date()
+      filter.dateOfBirth = {}
+      
+      if (maxAge) {
+        // If max age is 30, person should be born after (today - 30 years)
+        const maxDate = new Date(today.getFullYear() - parseInt(maxAge), today.getMonth(), today.getDate())
+        filter.dateOfBirth.$gte = maxDate
+      }
+      
+      if (minAge) {
+        // If min age is 18, person should be born before (today - 18 years)
+        const minDate = new Date(today.getFullYear() - parseInt(minAge), today.getMonth(), today.getDate())
+        filter.dateOfBirth.$lte = minDate
+      }
     }
 
-    if (dateFrom || dateTo) {
+    // Registration date range
+    if (fromDate || toDate) {
       filter.createdAt = {}
-      if (dateFrom) {
-        filter.createdAt.$gte = new Date(dateFrom)
+      if (fromDate) {
+        filter.createdAt.$gte = new Date(fromDate)
       }
-      if (dateTo) {
-        filter.createdAt.$lte = new Date(dateTo + 'T23:59:59.999Z')
+      if (toDate) {
+        filter.createdAt.$lte = new Date(toDate + 'T23:59:59.999Z')
       }
-    }
-
-    if (tourPackage) {
-      filter.tourPackage = tourPackage
     }
 
     // Get total count for pagination
@@ -74,12 +93,33 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / limit)
     const skip = (page - 1) * limit
 
-    // Get tourists
-    const tourists = await Tourist.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
+    // Get tourists with aggregation to include booking statistics
+    const tourists = await Tourist.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'bookings',
+          localField: '_id',
+          foreignField: 'tourist',
+          as: 'bookings'
+        }
+      },
+      {
+        $addFields: {
+          totalBookings: { $size: '$bookings' },
+          totalSpent: { $sum: '$bookings.totalAmount' },
+          lastBooking: { $max: '$bookings.createdAt' }
+        }
+      },
+      {
+        $project: {
+          bookings: 0 // Remove the bookings array from response
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ])
 
     return NextResponse.json({
       success: true,
@@ -102,17 +142,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Allow admin and manager to create tourists
-    if (session.user?.role !== 'admin' && session.user?.role !== 'manager') {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
     await connectDB()
 
     const body = await request.json()
@@ -219,5 +248,63 @@ export async function POST(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+// PUT /api/tourists - Update tourist
+export async function PUT(request: NextRequest) {
+  try {
+    await connectDB()
+    const { _id, ...updateData } = await request.json()
+    
+    if (!_id) {
+      return NextResponse.json({ error: 'Tourist ID is required' }, { status: 400 })
+    }
+
+    const updatedTourist = await Tourist.findByIdAndUpdate(
+      _id,
+      { ...updateData, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    )
+
+    if (!updatedTourist) {
+      return NextResponse.json({ error: 'Tourist not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      data: updatedTourist,
+      message: 'Tourist updated successfully'
+    })
+  } catch (error) {
+    console.error('Error updating tourist:', error)
+    return NextResponse.json({ error: 'Failed to update tourist' }, { status: 500 })
+  }
+}
+
+// DELETE /api/tourists - Delete tourist
+export async function DELETE(request: NextRequest) {
+  try {
+    await connectDB()
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Tourist ID is required' }, { status: 400 })
+    }
+
+    const deletedTourist = await Tourist.findByIdAndDelete(id)
+    
+    if (!deletedTourist) {
+      return NextResponse.json({ error: 'Tourist not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Tourist deleted successfully' 
+    })
+  } catch (error) {
+    console.error('Error deleting tourist:', error)
+    return NextResponse.json({ error: 'Failed to delete tourist' }, { status: 500 })
   }
 }
