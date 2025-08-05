@@ -149,8 +149,8 @@ export default function TouristDetailPage() {
   return (
     <DashboardLayout>
       {/* Header */}
-      <div className="max-w-7xl bg-white shadow-sm -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-6">
-        <div className="flex items-center justify-between h-16">
+      <div className="bg-white shadow-sm rounded-lg mb-6">
+        <div className="flex items-center justify-between h-16 px-6">
           <div className="flex items-center">
             <button
               onClick={() => router.push('/dashboard')}

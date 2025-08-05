@@ -69,22 +69,47 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   useEffect(() => {
     fetchDashboardData()
+    
+    // Add event listener for focus to refresh data when returning to dashboard
+    const handleFocus = () => {
+      fetchDashboardData()
+    }
+    
+    window.addEventListener('focus', handleFocus)
+    
+    // Also refresh when the component mounts or when coming back from other pages
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchDashboardData()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       
+      // Add cache busting parameter
+      const timestamp = Date.now()
+      
       // Fetch comprehensive stats from multiple endpoints
       const [touristsRes, bookingsRes, packagesRes, guidesRes, destinationsRes] = await Promise.all([
-        fetch('/api/tourists/stats'),
-        fetch('/api/bookings'),
-        fetch('/api/packages'),
-        fetch('/api/guides'),
-        fetch('/api/admin/destinations')
+        fetch(`/api/tourists/stats?t=${timestamp}`),
+        fetch(`/api/bookings?t=${timestamp}`),
+        fetch(`/api/packages?t=${timestamp}`),
+        fetch(`/api/guides?t=${timestamp}`),
+        fetch(`/api/admin/destinations?t=${timestamp}`)
       ])
 
       // Process tourist stats
@@ -200,6 +225,8 @@ export default function DashboardPage() {
         guides: guideStats,
         hotels: hotelStats
       })
+      
+      setLastUpdated(new Date())
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -239,6 +266,28 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {/* Dashboard Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600">
+              Tourism Management System Overview
+              {lastUpdated && (
+                <span className="ml-2 text-sm text-gray-500">
+                  • Last updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={fetchDashboardData}
+            disabled={loading}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          >
+            <ArrowUpRight className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing...' : 'Refresh Data'}
+          </button>
+        </div>
 
         {/* Key Metrics */}
         {stats && (
