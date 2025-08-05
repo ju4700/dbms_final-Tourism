@@ -98,25 +98,18 @@ export default function BookingsPage() {
     try {
       // Find the booking to get totalAmount for completed status
       const booking = bookings.find(b => b._id === bookingId)
-      console.log('Found booking:', booking)
-      console.log('Updating to status:', status)
-      
       const updateData: any = { _id: bookingId, status }
       
       // If status is completed, automatically set paidAmount to totalAmount
       if (status === 'completed' && booking) {
         updateData.paidAmount = booking.totalAmount
         updateData.paymentStatus = 'completed'
-        console.log('Setting paidAmount to:', booking.totalAmount)
       }
       // If status is cancelled, set paidAmount to 0 (refund scenario)
       else if (status === 'cancelled' && booking) {
         updateData.paidAmount = 0
         updateData.paymentStatus = 'pending'
-        console.log('Setting paidAmount to 0 for cancelled booking')
       }
-      
-      console.log('Update data being sent:', updateData)
       
       const response = await fetch(`/api/bookings`, {
         method: 'PUT',
@@ -127,8 +120,6 @@ export default function BookingsPage() {
       })
 
       if (response.ok) {
-        const result = await response.json()
-        console.log('Update response:', result)
         toast.success('Booking status updated successfully')
         fetchBookings() // Refresh the list
       } else {
