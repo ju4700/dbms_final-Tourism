@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Plus, Trash2, Edit, Building, MapPin, Phone, Mail, Star, DollarSign, Wifi, Car, Utensils } from 'lucide-react'
+import { Plus, Trash2, Edit, Building, MapPin, Phone, Mail, Star, Wifi, Car, Utensils } from 'lucide-react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Hotel } from '@/types'
 
@@ -321,7 +321,7 @@ export default function HotelsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price per Night (USD)
+                      Price per Night (BDT)
                     </label>
                     <input
                       type="number"
@@ -454,8 +454,7 @@ export default function HotelsPage() {
                         )}
                         {hotel.roomTypes?.[0]?.pricePerNight && (
                           <div className="flex items-center font-semibold text-indigo-600">
-                            <DollarSign className="w-4 h-4 mr-1" />
-                            ${hotel.roomTypes[0].pricePerNight}/night
+                            BDT {hotel.roomTypes[0].pricePerNight}/night
                           </div>
                         )}
                       </div>

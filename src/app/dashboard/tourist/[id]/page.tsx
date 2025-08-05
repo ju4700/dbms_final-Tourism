@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { 
-  User, Mail, Phone, MapPin, Calendar, Package, DollarSign, 
+  User, Mail, Phone, MapPin, Calendar, Package, 
   Users, Plane, FileText, Edit, Trash2, Download, CreditCard,
   Globe, Clock, UserCheck, Camera, IdCard as Passport
 } from 'lucide-react'
@@ -19,15 +19,10 @@ export default function TouristDetailPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login')
-      return
-    }
-
-    if (status === 'authenticated' && params.id) {
+    if (params.id) {
       fetchTourist()
     }
-  }, [status, router, params.id])
+  }, [params.id])
 
   const fetchTourist = async () => {
     try {
@@ -35,8 +30,8 @@ export default function TouristDetailPage() {
       const response = await fetch(`/api/tourists/${params.id}`)
       
       if (response.ok) {
-        const data = await response.json()
-        setTourist(data.tourist)
+        const result = await response.json()
+        setTourist(result.data) // Changed from result.tourist to result.data
       } else {
         toast.error('Tourist not found')
         router.push('/dashboard')
@@ -86,10 +81,7 @@ export default function TouristDetailPage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0)
+    return `BDT ${(amount || 0).toLocaleString()}`
   }
 
   const getStatusColor = (status: string) => {
@@ -156,53 +148,49 @@ export default function TouristDetailPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center">
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="mr-4 text-gray-400 hover:text-gray-600"
+      {/* Header */}
+      <div className="max-w-7xl bg-white shadow-sm -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="mr-4 text-gray-400 hover:text-gray-600"
+            >
+              ←
+            </button>
+            <h1 className="text-xl font-semibold text-gray-900">
+              Tourist Details
+            </h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            {/* Always show admin buttons since no authentication */}
+            <>
+              <button
+                onClick={handleEdit}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  ←
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
                 </button>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Tourist Details
-                </h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                {/* Always show admin buttons since no authentication */}
-                <>
-                  <button
-                    onClick={handleEdit}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </button>
-                  </>
-              </div>
-            </div>
+                <button
+                  onClick={handleDelete}
+                  className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </button>
+              </>
           </div>
         </div>
+      </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Personal Information */}
+              {/* Tourist ID */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Tourist ID</h2>
                   <div className="flex items-center space-x-2">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(tourist.status)}`}>
                       {tourist.status}
@@ -210,11 +198,23 @@ export default function TouristDetailPage() {
                   </div>
                 </div>
 
+                <div className="bg-gray-50 px-4 py-3 rounded-lg">
+                  <p className="text-lg font-mono font-semibold text-gray-800">{tourist.touristId}</p>
+                  <p className="text-sm text-gray-600">Tourist identification number</p>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex items-center">
                     <User className="w-5 h-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Name</p>
+                      <p className="text-sm font-medium text-gray-500">Full Name</p>
                       <p className="text-gray-900">{tourist.name}</p>
                     </div>
                   </div>
@@ -222,7 +222,7 @@ export default function TouristDetailPage() {
                   <div className="flex items-center">
                     <Mail className="w-5 h-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Email</p>
+                      <p className="text-sm font-medium text-gray-500">Email Address</p>
                       <p className="text-gray-900">{tourist.email || 'N/A'}</p>
                     </div>
                   </div>
@@ -230,11 +230,97 @@ export default function TouristDetailPage() {
                   <div className="flex items-center">
                     <Phone className="w-5 h-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Phone</p>
+                      <p className="text-sm font-medium text-gray-500">Phone Number</p>
                       <p className="text-gray-900">{tourist.phone}</p>
                     </div>
                   </div>
 
+                  <div className="flex items-center">
+                    <Calendar className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Date of Birth</p>
+                      <p className="text-gray-900">{tourist.dateOfBirth ? formatDate(tourist.dateOfBirth) : 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <User className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Gender</p>
+                      <p className="text-gray-900">{tourist.gender ? tourist.gender.charAt(0).toUpperCase() + tourist.gender.slice(1) : 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Globe className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Nationality</p>
+                      <p className="text-gray-900">{tourist.nationality || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-6">Address Information</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-center">
+                    <MapPin className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Building/House Number</p>
+                      <p className="text-gray-900">{tourist.address?.building || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <MapPin className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Street Address</p>
+                      <p className="text-gray-900">{tourist.address?.street || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <MapPin className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">City</p>
+                      <p className="text-gray-900">{tourist.address?.city || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <MapPin className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">State/Province</p>
+                      <p className="text-gray-900">{tourist.address?.state || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <MapPin className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Country</p>
+                      <p className="text-gray-900">{tourist.address?.country || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <MapPin className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">ZIP/Postal Code</p>
+                      <p className="text-gray-900">{tourist.address?.zipCode || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Information */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-6">Document Information</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex items-center">
                     <Passport className="w-5 h-5 text-gray-400 mr-3" />
                     <div>
@@ -244,21 +330,18 @@ export default function TouristDetailPage() {
                   </div>
 
                   <div className="flex items-center">
-                    <Users className="w-5 h-5 text-gray-400 mr-3" />
+                    <Calendar className="w-5 h-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Number of Travelers</p>
-                      <p className="text-gray-900">{tourist.numberOfTravelers}</p>
+                      <p className="text-sm font-medium text-gray-500">Passport Expiry Date</p>
+                      <p className="text-gray-900">{tourist.passportExpiryDate ? formatDate(tourist.passportExpiryDate) : 'N/A'}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center">
-                    <MapPin className="w-5 h-5 text-gray-400 mr-3" />
+                    <FileText className="w-5 h-5 text-gray-400 mr-3" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Address</p>
-                      <p className="text-gray-900">
-                        {[tourist.address.city, tourist.address.state, tourist.address.country]
-                          .filter(Boolean).join(', ')}
-                      </p>
+                      <p className="text-sm font-medium text-gray-500">NID/National ID Number</p>
+                      <p className="text-gray-900">{tourist.nidNumber || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -451,8 +534,6 @@ export default function TouristDetailPage() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
     </DashboardLayout>
   )
 }

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
   Menu, 
@@ -51,21 +50,15 @@ export default function Header({
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-1">
           {/* Left Side - Logo and Title */}
           <div className="flex items-center min-w-0 flex-1">
             <Link href="/dashboard" className="flex items-center flex-shrink-0">
-              <div className="w-16 h-16 mr-3 flex-shrink-0">
-                <Image
-                  src="/logo1.png"
-                  alt="Tourism Management System"
-                  width={64}
-                  height={64}
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              <h2 className="text-xl font-bold text-gray-900 mr-6">
+                Travel Management
+              </h2>
             </Link>
             
             <div className="min-w-0 flex-1 ml-4">

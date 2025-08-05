@@ -2,10 +2,9 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Plus, Search, Filter, Calendar, DollarSign, User, MapPin } from 'lucide-react'
+import { Plus, Search, Filter, Calendar, User, MapPin } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import Header from '@/components/layout/Header'
 
 interface Booking {
   _id: string
@@ -15,11 +14,21 @@ interface Booking {
     email: string
     phone: string
   }
-  package: {
+  package?: {
     _id: string
     name: string
     price: number
     destination: string
+  }
+  destination?: {
+    _id: string
+    name: string
+    description: string
+  }
+  guide?: {
+    _id: string
+    name: string
+    phone: string
   }
   bookingDate: string
   startDate: string
@@ -37,18 +46,30 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const itemsPerPage = 15
 
   useEffect(() => {
     fetchBookings()
-  }, [])
+  }, [searchTerm, statusFilter, currentPage])
 
   const fetchBookings = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/bookings')
+      const params = new URLSearchParams()
+      if (searchTerm) params.append('search', searchTerm)
+      if (statusFilter) params.append('status', statusFilter)
+      params.append('page', currentPage.toString())
+      params.append('limit', itemsPerPage.toString())
+      
+      const response = await fetch(`/api/bookings?${params}`)
       if (response.ok) {
         const data = await response.json()
         setBookings(data.data || [])
+        setTotalCount(data.pagination?.total || 0)
+        setTotalPages(data.pagination?.totalPages || 1)
       } else {
         toast.error('Failed to fetch bookings')
       }
@@ -60,15 +81,15 @@ export default function BookingsPage() {
     }
   }
 
-  const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.tourist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.tourist.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.package.name.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = statusFilter === '' || booking.status === statusFilter
-    
-    return matchesSearch && matchesStatus
-  })
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1) // Reset to first page when searching
+  }
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value)
+    setCurrentPage(1) // Reset to first page when filtering
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -104,10 +125,6 @@ export default function BookingsPage() {
 
   return (
     <DashboardLayout>
-      <Header
-        title="Bookings Management"
-        subtitle="Manage tourist bookings and reservations"
-      />
 
       <div className="space-y-6">
         {/* Search and Filter Controls */}
@@ -118,9 +135,9 @@ export default function BookingsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Search by tourist name, email, or package..."
+                  placeholder="Search by tourist name, email, package, or destination..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
@@ -128,7 +145,7 @@ export default function BookingsPage() {
             <div className="sm:w-48">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => handleStatusChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 <option value="">All Statuses</option>
@@ -139,7 +156,7 @@ export default function BookingsPage() {
               </select>
             </div>
             <button
-              onClick={() => router.push('/dashboard/tourist/add')}
+              onClick={() => router.push('/dashboard/bookings/add')}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -152,11 +169,11 @@ export default function BookingsPage() {
         <div className="bg-white rounded-lg shadow-sm">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">
-              Recent Bookings ({filteredBookings.length})
+              Recent Bookings ({totalCount})
             </h3>
           </div>
 
-          {filteredBookings.length === 0 ? (
+          {bookings.length === 0 ? (
             <div className="p-12 text-center">
               <Calendar className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings found</h3>
@@ -184,7 +201,7 @@ export default function BookingsPage() {
                       Tourist
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Package
+                      Package/Destination
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Dates
@@ -201,7 +218,7 @@ export default function BookingsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredBookings.map((booking) => (
+                  {bookings.map((booking) => (
                     <tr key={booking._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -212,20 +229,27 @@ export default function BookingsPage() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {booking.tourist.name}
+                              {booking.tourist?.name || 'Unknown Tourist'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {booking.tourist.email}
+                              {booking.tourist?.email || 'No email'}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{booking.package.name}</div>
+                        <div className="text-sm text-gray-900">
+                          {booking.package ? booking.package.name : booking.destination ? booking.destination.name : 'N/A'}
+                        </div>
                         <div className="text-sm text-gray-500 flex items-center">
                           <MapPin className="w-3 h-3 mr-1" />
-                          {booking.package.destination}
+                          {booking.package ? booking.package.destination : booking.destination ? 'Direct Destination' : 'N/A'}
                         </div>
+                        {booking.guide && (
+                          <div className="text-xs text-blue-600">
+                            Guide: {booking.guide.name}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div>{new Date(booking.startDate).toLocaleDateString()}</div>
@@ -243,12 +267,11 @@ export default function BookingsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
-                          <DollarSign className="w-4 h-4 text-gray-400 mr-1" />
-                          ${booking.totalAmount.toLocaleString()}
+                          BDT {booking.totalAmount.toLocaleString()}
                         </div>
                         {booking.paymentStatus === 'partial' && (
                           <div className="text-xs text-gray-500">
-                            Paid: ${booking.paidAmount.toLocaleString()}
+                            Paid: BDT {booking.paidAmount.toLocaleString()}
                           </div>
                         )}
                       </td>
@@ -256,6 +279,98 @@ export default function BookingsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {!loading && bookings.length > 0 && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-b-lg mt-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing{' '}
+                    <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
+                    {' '}to{' '}
+                    <span className="font-medium">
+                      {Math.min(currentPage * itemsPerPage, totalCount)}
+                    </span>
+                    {' '}of{' '}
+                    <span className="font-medium">{totalCount}</span>
+                    {' '}results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        if (totalPages <= 7) return true;
+                        if (page === 1 || page === totalPages) return true;
+                        if (Math.abs(page - currentPage) <= 2) return true;
+                        return false;
+                      })
+                      .map((page, index, array) => {
+                        const showEllipsis = index > 0 && array[index - 1] < page - 1;
+                        return (
+                          <div key={page} className="flex">
+                            {showEllipsis && (
+                              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                ...
+                              </span>
+                            )}
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                currentPage === page
+                                  ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
             </div>
           )}
         </div>

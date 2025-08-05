@@ -4,7 +4,6 @@ const touristSchema = new mongoose.Schema({
   touristId: {
     type: String,
     required: true,
-    unique: true,
   },
   name: {
     type: String,
@@ -17,6 +16,19 @@ const touristSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
+  },
+  dateOfBirth: {
+    type: Date,
+    required: false,
+  },
+  nationality: {
+    type: String,
+    required: true,
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other'],
+    required: false,
   },
   address: {
     building: {
@@ -44,56 +56,17 @@ const touristSchema = new mongoose.Schema({
       required: false,
     },
   },
-  destination: {
-    type: String,
-    required: true,
-  },
   passportNumber: {
     type: String,
     required: false,
   },
-  passportImage: {
-    type: String,
+  passportExpiryDate: {
+    type: Date,
     required: false,
   },
-  visaImage: {
+  nidNumber: {
     type: String,
     required: false,
-  },
-  profilePicture: {
-    type: String,
-    required: false,
-  },
-  tourPackage: {
-    type: String,
-    required: true,
-  },
-  packagePrice: {
-    type: Number,
-    required: true,
-  },
-  status: {
-    type: String,
-    enum: ['active', 'completed', 'cancelled', 'pending'],
-    default: 'pending',
-  },
-  bookingDate: {
-    type: Date,
-    required: true,
-    default: Date.now,
-  },
-  travelDate: {
-    type: Date,
-    required: true,
-  },
-  returnDate: {
-    type: Date,
-    required: true,
-  },
-  numberOfTravelers: {
-    type: Number,
-    required: true,
-    default: 1,
   },
   emergencyContact: {
     name: {
@@ -109,31 +82,10 @@ const touristSchema = new mongoose.Schema({
       required: false,
     },
   },
-  specialRequests: {
+  status: {
     type: String,
-    required: false,
-  },
-  accommodationType: {
-    type: String,
-    enum: ['hotel', 'resort', 'hostel', 'vacation-rental', 'other'],
-    default: 'hotel',
-  },
-  totalAmount: {
-    type: Number,
-    required: true,
-  },
-  paidAmount: {
-    type: Number,
-    default: 0,
-  },
-  paymentStatus: {
-    type: String,
-    enum: ['pending', 'partial', 'paid', 'refunded'],
-    default: 'pending',
-  },
-  assignedGuide: {
-    type: String,
-    required: false,
+    enum: ['active', 'inactive'],
+    default: 'active',
   },
 }, {
   timestamps: true,
@@ -141,19 +93,15 @@ const touristSchema = new mongoose.Schema({
 
 // Indexes for faster queries
 touristSchema.index({ name: 1 })
-touristSchema.index({ destination: 1 })
-touristSchema.index({ status: 1 })
-touristSchema.index({ createdAt: -1 })
 touristSchema.index({ phone: 1 })
 touristSchema.index({ email: 1 }, { sparse: true })
-touristSchema.index({ travelDate: 1 })
-touristSchema.index({ paymentStatus: 1 })
+touristSchema.index({ nationality: 1 })
+touristSchema.index({ status: 1 })
+touristSchema.index({ createdAt: -1 })
+touristSchema.index({ touristId: 1 }, { unique: true })
 
 // Compound indexes for common query patterns
-touristSchema.index({ status: 1, destination: 1 })
 touristSchema.index({ status: 1, createdAt: -1 })
-touristSchema.index({ destination: 1, createdAt: -1 })
-touristSchema.index({ travelDate: 1, status: 1 })
-touristSchema.index({ paymentStatus: 1, status: 1 })
+touristSchema.index({ nationality: 1, status: 1 })
 
 export const Tourist = mongoose.models.Tourist || mongoose.model('Tourist', touristSchema)

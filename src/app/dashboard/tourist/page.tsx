@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { Plus, Edit, Trash2, Eye, User, Phone, Mail, Calendar, MapPin } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import Header from '@/components/layout/Header'
 import AdvancedSearch from '@/components/AdvancedSearch'
 
 interface Tourist {
@@ -34,10 +33,14 @@ export default function TouristsPage() {
   const [tourists, setTourists] = useState<Tourist[]>([])
   const [loading, setLoading] = useState(true)
   const [searchFilters, setSearchFilters] = useState<any>({})
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const itemsPerPage = 15
 
   useEffect(() => {
     fetchTourists()
-  }, [searchFilters])
+  }, [searchFilters, currentPage])
 
   const searchFields = [
     {
@@ -110,10 +113,16 @@ export default function TouristsPage() {
         if (value) params.append(key, value.toString())
       })
       
+      // Add pagination parameters
+      params.append('page', currentPage.toString())
+      params.append('limit', itemsPerPage.toString())
+      
       const response = await fetch(`/api/tourists?${params}`)
       if (response.ok) {
         const data = await response.json()
         setTourists(data.data || [])
+        setTotalCount(data.pagination?.total || 0)
+        setTotalPages(data.pagination?.totalPages || 1)
       } else {
         toast.error('Failed to fetch tourists')
       }
@@ -127,6 +136,7 @@ export default function TouristsPage() {
 
   const handleSearch = (filters: any) => {
     setSearchFilters(filters)
+    setCurrentPage(1) // Reset to first page when searching
   }
 
   const handleDelete = async (id: string, name: string) => {
@@ -185,10 +195,6 @@ export default function TouristsPage() {
 
   return (
     <DashboardLayout>
-      <Header
-        title="Tourist Management"
-        subtitle="Manage tourist records and information"
-      />
 
       <div className="space-y-6">
         {/* Advanced Search */}
@@ -307,7 +313,7 @@ export default function TouristsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div>Total: {tourist.totalBookings || 0}</div>
                         <div className="text-gray-500">
-                          Spent: ${tourist.totalSpent?.toLocaleString() || 0}
+                          Spent: BDT {tourist.totalSpent?.toLocaleString() || 0}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -339,6 +345,98 @@ export default function TouristsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && tourists.length > 0 && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-b-lg">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing{' '}
+                    <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
+                    {' '}to{' '}
+                    <span className="font-medium">
+                      {Math.min(currentPage * itemsPerPage, totalCount)}
+                    </span>
+                    {' '}of{' '}
+                    <span className="font-medium">{totalCount}</span>
+                    {' '}results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        if (totalPages <= 7) return true;
+                        if (page === 1 || page === totalPages) return true;
+                        if (Math.abs(page - currentPage) <= 2) return true;
+                        return false;
+                      })
+                      .map((page, index, array) => {
+                        const showEllipsis = index > 0 && array[index - 1] < page - 1;
+                        return (
+                          <div key={page} className="flex">
+                            {showEllipsis && (
+                              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                ...
+                              </span>
+                            )}
+                            <button
+                              onClick={() => setCurrentPage(page)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                currentPage === page
+                                  ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
             </div>
           )}
         </div>

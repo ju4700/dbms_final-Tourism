@@ -39,10 +39,7 @@ export default function TouristTable({ tourists, onDelete, isDeleting }: Tourist
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0)
+    return `BDT ${(amount || 0).toLocaleString()}`
   }
 
   const getStatusColor = (status: string) => {

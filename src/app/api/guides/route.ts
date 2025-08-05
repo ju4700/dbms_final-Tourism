@@ -9,13 +9,31 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const destination = searchParams.get('destination')
     const isActive = searchParams.get('isActive')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '15')
+    const skip = (page - 1) * limit
 
     const filter: any = {}
     if (destination) filter.destinations = { $in: [destination] }
     if (isActive !== null) filter.isActive = isActive === 'true'
 
-    const guides = await Guide.find(filter).sort({ name: 1 })
-    return NextResponse.json({ guides })
+    const total = await Guide.countDocuments(filter)
+    const totalPages = Math.ceil(total / limit)
+    
+    const guides = await Guide.find(filter)
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit)
+      
+    return NextResponse.json({ 
+      guides,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    })
   } catch (error) {
     console.error('Error fetching guides:', error)
     return NextResponse.json({ error: 'Failed to fetch guides' }, { status: 500 })

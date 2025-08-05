@@ -10,14 +10,32 @@ export async function GET(request: NextRequest) {
     const destination = searchParams.get('destination')
     const category = searchParams.get('category')
     const isActive = searchParams.get('isActive')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '15')
+    const skip = (page - 1) * limit
 
     const filter: any = {}
     if (destination) filter.destination = destination
     if (category) filter.category = category
     if (isActive !== null) filter.isActive = isActive === 'true'
 
-    const packages = await TourPackage.find(filter).sort({ name: 1 })
-    return NextResponse.json({ packages })
+    const total = await TourPackage.countDocuments(filter)
+    const totalPages = Math.ceil(total / limit)
+    
+    const packages = await TourPackage.find(filter)
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit)
+      
+    return NextResponse.json({ 
+      packages,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    })
   } catch (error) {
     console.error('Error fetching tour packages:', error)
     return NextResponse.json({ error: 'Failed to fetch tour packages' }, { status: 500 })

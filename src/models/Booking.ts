@@ -3,7 +3,8 @@ import mongoose from 'mongoose'
 export interface IBooking {
   _id?: string
   tourist: mongoose.Types.ObjectId | string
-  package: mongoose.Types.ObjectId | string
+  package?: mongoose.Types.ObjectId | string
+  destination?: mongoose.Types.ObjectId | string
   guide?: mongoose.Types.ObjectId | string
   bookingDate: Date
   startDate: Date
@@ -19,6 +20,7 @@ export interface IBooking {
     phone: string
     relationship: string
   }
+  accommodationType?: string
   createdAt?: Date
   updatedAt?: Date
 }
@@ -32,7 +34,12 @@ const BookingSchema = new mongoose.Schema<IBooking>({
   package: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'TourPackage',
-    required: true
+    required: false
+  },
+  destination: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Destination',
+    required: false
   },
   guide: {
     type: mongoose.Schema.Types.ObjectId,
@@ -77,6 +84,11 @@ const BookingSchema = new mongoose.Schema<IBooking>({
     enum: ['pending', 'confirmed', 'completed', 'cancelled'],
     default: 'pending'
   },
+  accommodationType: {
+    type: String,
+    enum: ['hotel', 'resort', 'hostel', 'vacation-rental', 'other'],
+    required: false
+  },
   specialRequests: {
     type: String,
     maxlength: 500
@@ -116,8 +128,14 @@ BookingSchema.virtual('durationDays').get(function() {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 })
 
-// Pre-save middleware to update payment status
+// Pre-save middleware to validate and update payment status
 BookingSchema.pre('save', function(next) {
+  // Ensure either package or destination is provided
+  if (!this.package && !this.destination) {
+    return next(new Error('Either package or destination must be specified'))
+  }
+  
+  // Update payment status based on amounts
   if (this.paidAmount >= this.totalAmount) {
     this.paymentStatus = 'completed'
   } else if (this.paidAmount > 0) {

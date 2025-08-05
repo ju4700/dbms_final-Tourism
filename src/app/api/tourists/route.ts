@@ -146,85 +146,84 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
+      touristId,
       name,
       email,
       phone,
+      dateOfBirth,
+      nationality,
+      gender,
       address,
-      destination,
       passportNumber,
-      tourPackage,
-      packagePrice,
-      status,
-      bookingDate,
-      travelDate,
-      returnDate,
-      numberOfTravelers,
+      passportExpiryDate,
+      nidNumber,
       emergencyContact,
-      specialRequests,
-      accommodationType,
-      totalAmount,
-      paidAmount,
-      paymentStatus,
-      assignedGuide,
-      profilePicture,
-      passportImage,
-      visaImage
+      status
     } = body
 
-    // Generate tourist ID
-    const tourists = await Tourist.find(
-      { touristId: { $regex: /^TMS-\d+$/ } },
-      { touristId: 1 }
-    ).lean();
+    // Use provided touristId or generate one
+    let finalTouristId = touristId;
+    
+    if (!finalTouristId) {
+      // Generate tourist ID if not provided
+      const tourists = await Tourist.find(
+        { touristId: { $regex: /^TMS-\d+$/ } },
+        { touristId: 1 }
+      ).lean();
 
-    let nextNumber = 1;
+      let nextNumber = 1;
 
-    if (tourists.length > 0) {
-      const numbers = tourists
-        .map(t => {
-          const touristRecord = t as { touristId?: string };
-          if (touristRecord.touristId && typeof touristRecord.touristId === 'string') {
-            const match = touristRecord.touristId.match(/^TMS-(\d+)$/);
-            const num = match ? parseInt(match[1], 10) : 0;
-            return num;
-          }
-          return 0;
-        })
-        .filter(n => n > 0);
+      if (tourists.length > 0) {
+        const numbers = tourists
+          .map(t => {
+            const touristRecord = t as { touristId?: string };
+            if (touristRecord.touristId && typeof touristRecord.touristId === 'string') {
+              const match = touristRecord.touristId.match(/^TMS-(\d+)$/);
+              const num = match ? parseInt(match[1], 10) : 0;
+              return num;
+            }
+            return 0;
+          })
+          .filter(n => n > 0);
 
-      if (numbers.length > 0) {
-        nextNumber = Math.max(...numbers) + 1;
+        if (numbers.length > 0) {
+          nextNumber = Math.max(...numbers) + 1;
+        }
       }
+
+      finalTouristId = `TMS-${nextNumber.toString().padStart(4, '0')}`;
+    }
+    
+    console.log('POST: Using tourist ID:', finalTouristId);
+
+    // Validate required fields
+    if (!name || !phone || !nationality || !address?.city || !address?.state || !address?.country) {
+      return NextResponse.json({
+        error: 'Missing required fields: name, phone, nationality, and complete address are required'
+      }, { status: 400 })
     }
 
-    const touristId = `TMS-${nextNumber.toString().padStart(4, '0')}`;
-    console.log('POST: Generated tourist ID:', touristId);
-
     const touristData = {
-      touristId,
+      touristId: finalTouristId,
       name,
       email: email || undefined,
       phone,
-      address,
-      destination,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      nationality,
+      gender: gender || undefined,
+      address: {
+        building: address?.building || undefined,
+        street: address?.street || undefined,
+        city: address?.city,
+        state: address?.state,
+        country: address?.country,
+        zipCode: address?.zipCode || undefined,
+      },
       passportNumber: passportNumber || undefined,
-      tourPackage,
-      packagePrice: parseFloat(packagePrice),
-      status: status || 'pending',
-      bookingDate: bookingDate ? new Date(bookingDate) : new Date(),
-      travelDate: new Date(travelDate),
-      returnDate: new Date(returnDate),
-      numberOfTravelers: parseInt(numberOfTravelers) || 1,
+      passportExpiryDate: passportExpiryDate ? new Date(passportExpiryDate) : undefined,
+      nidNumber: nidNumber || undefined,
       emergencyContact: emergencyContact || undefined,
-      specialRequests: specialRequests || undefined,
-      accommodationType: accommodationType || 'hotel',
-      totalAmount: parseFloat(totalAmount),
-      paidAmount: parseFloat(paidAmount) || 0,
-      paymentStatus: paymentStatus || 'pending',
-      assignedGuide: assignedGuide || undefined,
-      profilePicture: profilePicture || undefined,
-      passportImage: passportImage || undefined,
-      visaImage: visaImage || undefined
+      status: status === 'inactive' ? 'inactive' : 'active' // Only allow valid enum values
     }
 
     const tourist = await Tourist.create(touristData)
@@ -240,6 +239,27 @@ export async function POST(request: NextRequest) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 11000) {
       return NextResponse.json(
         { error: 'Tourist ID already exists' },
+        { status: 400 }
+      )
+    }
+
+    // Handle validation errors
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ValidationError') {
+      const validationError = error as any
+      const fieldErrors: Record<string, string> = {}
+      
+      if (validationError.errors) {
+        Object.keys(validationError.errors).forEach(field => {
+          fieldErrors[field] = validationError.errors[field].message
+        })
+      }
+      
+      return NextResponse.json(
+        { 
+          error: 'Validation failed', 
+          details: fieldErrors,
+          message: validationError.message || 'Validation failed'
+        },
         { status: 400 }
       )
     }

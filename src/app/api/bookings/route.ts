@@ -53,14 +53,42 @@ export async function GET(request: NextRequest) {
     }
 
     // Get bookings with populated fields
-    const bookings = await Booking.find(query)
+    let bookingsQuery = Booking.find(query)
       .populate('tourist', 'name email phone')
       .populate('package', 'name price destination duration')
       .populate('guide', 'name phone specialization')
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
 
+    // Add search functionality
+    if (search) {
+      const searchRegex = new RegExp(search, 'i')
+      // We need to do the search after population, so we'll get all results first
+      const allBookings = await bookingsQuery
+      const filteredBookings = allBookings.filter(booking => {
+        return (
+          booking.tourist?.name?.match(searchRegex) ||
+          booking.tourist?.email?.match(searchRegex) ||
+          booking.package?.name?.match(searchRegex) ||
+          booking.package?.destination?.match(searchRegex)
+        )
+      })
+      
+      const total = filteredBookings.length
+      const paginatedBookings = filteredBookings.slice(skip, skip + limit)
+      
+      return NextResponse.json({
+        success: true,
+        data: paginatedBookings,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      })
+    }
+
+    const bookings = await bookingsQuery.skip(skip).limit(limit)
     const total = await Booking.countDocuments(query)
 
     return NextResponse.json({
@@ -70,7 +98,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit)
       }
     })
 
@@ -92,6 +120,7 @@ export async function POST(request: NextRequest) {
     const {
       touristId,
       packageId,
+      destinationId,
       guideId,
       startDate,
       endDate,
@@ -100,20 +129,61 @@ export async function POST(request: NextRequest) {
       emergencyContact
     } = body
 
-    // Validate required fields
-    if (!touristId || !packageId || !startDate || !endDate || !numberOfPeople) {
+    // Validate required fields - need either packageId or destinationId
+    if (!touristId || !startDate || !endDate || !numberOfPeople) {
       return NextResponse.json({
-        message: 'Missing required fields: touristId, packageId, startDate, endDate, numberOfPeople'
+        message: 'Missing required fields: touristId, startDate, endDate, numberOfPeople'
       }, { status: 400 })
     }
 
-    // Calculate total amount (assuming basic price calculation)
-    const totalAmount = 500 * numberOfPeople // Default price calculation
+    // Must have either package or destination
+    if (!packageId && !destinationId) {
+      return NextResponse.json({
+        message: 'Either packageId or destinationId must be provided'
+      }, { status: 400 })
+    }
+
+    // Validate tourist exists
+    const tourist = await Tourist.findById(touristId)
+    if (!tourist) {
+      return NextResponse.json({
+        message: 'Tourist not found'
+      }, { status: 404 })
+    }
+
+    let totalAmount = 0
+
+    // Calculate total amount based on package or destination
+    if (packageId) {
+      const tourPackage = await TourPackage.findById(packageId)
+      if (!tourPackage) {
+        return NextResponse.json({
+          message: 'Package not found'
+        }, { status: 404 })
+      }
+      totalAmount = tourPackage.price * numberOfPeople
+    } else if (destinationId) {
+      // Default calculation for destination-only bookings
+      totalAmount = 300 * numberOfPeople // Base rate for destination bookings
+    }
+
+    // Validate guide if provided
+    if (guideId) {
+      const guide = await Guide.findById(guideId)
+      if (!guide) {
+        return NextResponse.json({
+          message: 'Guide not found'
+        }, { status: 404 })
+      }
+      // Add guide fee
+      totalAmount += 100 * numberOfPeople
+    }
 
     // Create booking
     const booking = new Booking({
       tourist: touristId,
-      package: packageId,
+      package: packageId || undefined,
+      destination: destinationId || undefined,
       guide: guideId || undefined,
       startDate: new Date(startDate),
       endDate: new Date(endDate),

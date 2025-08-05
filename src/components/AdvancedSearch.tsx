@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, X, Calendar, DollarSign } from 'lucide-react'
+import { Search, Filter, X, Calendar } from 'lucide-react'
 
 interface AdvancedSearchProps {
   onSearch: (filters: any) => void

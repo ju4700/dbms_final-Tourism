@@ -4,6 +4,9 @@ export interface Tourist {
   name: string
   email?: string
   phone: string
+  dateOfBirth?: Date | string
+  nationality?: string
+  gender?: 'male' | 'female' | 'other'
   address: {
     building?: string
     street?: string
@@ -14,6 +17,8 @@ export interface Tourist {
   }
   destination: string
   passportNumber?: string
+  passportExpiryDate?: Date | string
+  nidNumber?: string
   passportImage?: string
   visaImage?: string
   profilePicture?: string
@@ -56,7 +61,7 @@ export interface TourPackage {
     activities: string[]
   }[]
   maxGroupSize: number
-  difficulty: 'easy' | 'moderate' | 'difficult'
+  difficulty: 'easy' | 'moderate' | 'challenging' | 'extreme'
   category: 'adventure' | 'cultural' | 'wildlife' | 'beach' | 'mountain' | 'historical' | 'luxury' | 'budget'
   images: string[]
   isActive: boolean
