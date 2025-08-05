@@ -65,8 +65,8 @@ interface Guide {
   _id: string
   name: string
   phone: string
-  specialization: string
-  dailyRate: number
+  specializations: string[]
+  pricePerDay: number
 }
 
 export default function NewBookingPage() {
@@ -161,7 +161,7 @@ export default function NewBookingPage() {
       const start = new Date(formData.startDate)
       const end = new Date(formData.endDate)
       const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-      total += selectedGuide.dailyRate * days
+      total += selectedGuide.pricePerDay * days
     }
     
     setTotalAmount(total)
@@ -444,7 +444,7 @@ export default function NewBookingPage() {
                   <option value="">No guide required</option>
                   {guides.map((guide) => (
                     <option key={guide._id} value={guide._id}>
-                      {guide.name} - {guide.specialization} (BDT {guide.dailyRate}/day)
+                      {guide.name} - {guide.specializations.join(', ')} (BDT {guide.pricePerDay}/day)
                     </option>
                   ))}
                 </select>
@@ -467,8 +467,8 @@ export default function NewBookingPage() {
                   <h3 className="font-medium text-purple-900 mb-2">Selected Guide</h3>
                   <div className="text-sm text-purple-800 space-y-1">
                     <p><strong>Guide:</strong> {selectedGuide.name}</p>
-                    <p><strong>Specialization:</strong> {selectedGuide.specialization}</p>
-                    <p><strong>Daily Rate:</strong> BDT {selectedGuide.dailyRate}</p>
+                    <p><strong>Specializations:</strong> {selectedGuide.specializations.join(', ')}</p>
+                    <p><strong>Daily Rate:</strong> BDT {selectedGuide.pricePerDay}</p>
                   </div>
                 </div>
               )}
