@@ -48,6 +48,8 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [editingBooking, setEditingBooking] = useState<string | null>(null)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 15
 
@@ -89,6 +91,63 @@ export default function BookingsPage() {
   const handleStatusChange = (value: string) => {
     setStatusFilter(value)
     setCurrentPage(1) // Reset to first page when filtering
+  }
+
+  const updateBookingStatus = async (bookingId: string, status: string) => {
+    setUpdatingStatus(bookingId)
+    try {
+      const response = await fetch(`/api/bookings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ _id: bookingId, status }),
+      })
+
+      if (response.ok) {
+        toast.success('Booking status updated successfully')
+        fetchBookings() // Refresh the list
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to update booking status')
+      }
+    } catch (error) {
+      console.error('Error updating booking status:', error)
+      toast.error('Failed to update booking status')
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  const updatePaymentStatus = async (bookingId: string, paymentStatus: string, paidAmount?: number) => {
+    setUpdatingStatus(bookingId)
+    try {
+      const updateData: any = { _id: bookingId, paymentStatus }
+      if (paidAmount !== undefined) {
+        updateData.paidAmount = paidAmount
+      }
+
+      const response = await fetch(`/api/bookings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      })
+
+      if (response.ok) {
+        toast.success('Payment status updated successfully')
+        fetchBookings() // Refresh the list
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to update payment status')
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error)
+      toast.error('Failed to update payment status')
+    } finally {
+      setUpdatingStatus(null)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -256,14 +315,41 @@ export default function BookingsPage() {
                         <div className="text-gray-500">to {new Date(booking.endDate).toLocaleDateString()}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                        </span>
+                        {updatingStatus === booking._id ? (
+                          <div className="animate-pulse">
+                            <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                          </div>
+                        ) : (
+                          <select
+                            value={booking.status}
+                            onChange={(e) => updateBookingStatus(booking._id, e.target.value)}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${getStatusColor(booking.status)}`}
+                            disabled={updatingStatus === booking._id}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(booking.paymentStatus)}`}>
-                          {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
-                        </span>
+                        {updatingStatus === booking._id ? (
+                          <div className="animate-pulse">
+                            <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                          </div>
+                        ) : (
+                          <select
+                            value={booking.paymentStatus}
+                            onChange={(e) => updatePaymentStatus(booking._id, e.target.value)}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${getPaymentStatusColor(booking.paymentStatus)}`}
+                            disabled={updatingStatus === booking._id}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="partial">Partial</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">

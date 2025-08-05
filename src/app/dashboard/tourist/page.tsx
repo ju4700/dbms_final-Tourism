@@ -36,6 +36,7 @@ export default function TouristsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [updatingTourist, setUpdatingTourist] = useState<string | null>(null)
   const itemsPerPage = 15
 
   useEffect(() => {
@@ -158,6 +159,32 @@ export default function TouristsPage() {
     } catch (error) {
       console.error('Error deleting tourist:', error)
       toast.error('Failed to delete tourist')
+    }
+  }
+
+  const updateTouristStatus = async (touristId: string, status: string) => {
+    setUpdatingTourist(touristId)
+    try {
+      const response = await fetch(`/api/tourists`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ _id: touristId, status }),
+      })
+
+      if (response.ok) {
+        toast.success('Tourist status updated successfully')
+        fetchTourists() // Refresh the list
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to update tourist status')
+      }
+    } catch (error) {
+      console.error('Error updating tourist status:', error)
+      toast.error('Failed to update tourist status')
+    } finally {
+      setUpdatingTourist(null)
     }
   }
 
@@ -306,9 +333,21 @@ export default function TouristsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(tourist.status)}`}>
-                          {tourist.status.charAt(0).toUpperCase() + tourist.status.slice(1)}
-                        </span>
+                        {updatingTourist === tourist._id ? (
+                          <div className="animate-pulse">
+                            <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
+                          </div>
+                        ) : (
+                          <select
+                            value={tourist.status}
+                            onChange={(e) => updateTouristStatus(tourist._id, e.target.value)}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${getStatusColor(tourist.status)}`}
+                            disabled={updatingTourist === tourist._id}
+                          >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div>Total: {tourist.totalBookings || 0}</div>

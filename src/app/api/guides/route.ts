@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       pricePerDay,
       certifications,
       bio,
+      isActive,
       emergencyContact
     } = body
 
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
       pricePerDay: parseFloat(pricePerDay) || 0,
       certifications: certifications || [],
       bio,
+      isActive: isActive !== undefined ? isActive : true,
       emergencyContact
     }
 

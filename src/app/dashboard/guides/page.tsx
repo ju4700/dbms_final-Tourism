@@ -66,30 +66,34 @@ export default function GuidesPage() {
     }
 
     try {
-      const url = editingGuide 
-        ? `/api/guides/${editingGuide.guideId}`
-        : '/api/guides'
-      
-      const method = editingGuide ? 'PUT' : 'POST'
-      
-      const response = await fetch(url, {
-        method,
+      const submitData: any = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        languages: formData.languages.split(',').map(s => s.trim()).filter(Boolean),
+        specializations: formData.specializations.split(',').map(s => s.trim()).filter(Boolean),
+        experience: formData.experience ? parseInt(formData.experience) : 0,
+        pricePerDay: formData.dailyRate ? parseFloat(formData.dailyRate) : 0,
+        isActive: formData.isAvailable,
+        bio: formData.bio,
+      }
+
+      if (editingGuide) {
+        submitData._id = editingGuide._id
+      }
+
+      const response = await fetch('/api/guides', {
+        method: editingGuide ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          languages: formData.languages.split(',').map(s => s.trim()).filter(Boolean),
-          specializations: formData.specializations.split(',').map(s => s.trim()).filter(Boolean),
-          experience: formData.experience ? parseInt(formData.experience) : undefined,
-          dailyRate: formData.dailyRate ? parseFloat(formData.dailyRate) : undefined,
-        }),
+        body: JSON.stringify(submitData),
       })
 
       if (response.ok) {
         const data = await response.json()
         toast.success(editingGuide ? 'Guide updated!' : 'Guide added!')
-        setGuides(data.guides || [])
+        fetchGuides() // Refresh the guides list
         resetForm()
       } else {
         const error = await response.json()
@@ -110,8 +114,8 @@ export default function GuidesPage() {
       languages: guide.languages?.join(', ') || '',
       specializations: guide.specializations?.join(', ') || '',
       experience: guide.experience?.toString() || '',
-      dailyRate: guide.dailyRate?.toString() || '',
-      isAvailable: guide.isAvailable !== false,
+      dailyRate: guide.pricePerDay?.toString() || '',
+      isAvailable: guide.isActive !== false,
       bio: guide.bio || '',
     })
     setShowAddForm(true)
@@ -123,14 +127,20 @@ export default function GuidesPage() {
     }
 
     try {
-      const response = await fetch(`/api/guides/${guideId}`, {
+      // Find the guide to get its _id
+      const guide = guides.find(g => g.guideId === guideId)
+      if (!guide) {
+        toast.error('Guide not found')
+        return
+      }
+
+      const response = await fetch(`/api/guides?id=${guide._id}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
-        const data = await response.json()
         toast.success('Guide deleted!')
-        setGuides(data.guides || [])
+        fetchGuides() // Refresh the guides list
       } else {
         const error = await response.json()
         toast.error(error.error || 'Failed to delete guide')
@@ -356,7 +366,7 @@ export default function GuidesPage() {
                       <div className="flex items-center">
                         <UserCheck className="w-5 h-5 text-gray-400 mr-2" />
                         <h3 className="text-lg font-semibold text-gray-900">{guide.name}</h3>
-                        {!guide.isAvailable && (
+                        {!guide.isActive && (
                           <span className="ml-3 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
                             Unavailable
                           </span>
